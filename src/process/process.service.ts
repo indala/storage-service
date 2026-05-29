@@ -4,9 +4,11 @@ import { StorageService } from '../storage/storage.service';
 import ILovePDFApi from '@ilovepdf/ilovepdf-nodejs';
 import ILovePDFFile from '@ilovepdf/ilovepdf-nodejs/ILovePDFFile';
 import * as fs from 'fs/promises';
+import { createWriteStream } from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
 
 @Injectable()
 export class ProcessService {
@@ -48,7 +50,7 @@ export class ProcessService {
       tempInputPath = path.join(tempDir, uniqueName);
 
       // Helper to consume the ReadStream into a file on disk
-      await fs.writeFile(tempInputPath, fileStream);
+      await pipeline(fileStream, createWriteStream(tempInputPath));
 
       // 3. Initialize iLovePDF
       const instance = new ILovePDFApi(this.publicKey, this.secretKey);

@@ -15,7 +15,7 @@ export class StorageService {
     const configuredDir = this.configService.get<string>('STORAGE_DIR');
     this.storageRoot = configuredDir
       ? path.resolve(configuredDir)
-      : path.resolve(process.cwd(), '../storage');
+      : path.resolve(process.cwd(), './storage');
   }
 
   /**
