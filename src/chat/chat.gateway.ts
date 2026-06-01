@@ -9,7 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { ConfigService } from '@nestjs/config';
-import * as jwt from 'jsonwebtoken';
+import { verify } from 'jsonwebtoken';
 import { Logger } from '@nestjs/common';
 
 @WebSocketGateway({
@@ -48,7 +48,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     try {
-      const decoded = jwt.verify(token, secret) as { userId: string; role: string };
+      const decoded = verify(token, secret) as { userId: string; role: string };
       
       if (!decoded.userId || !decoded.role) {
         throw new Error('Token payload is missing userId or role');
