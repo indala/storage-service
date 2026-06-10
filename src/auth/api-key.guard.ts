@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FastifyRequest } from 'fastify';
 
@@ -7,9 +12,13 @@ export class ApiKeyGuard implements CanActivate {
   private readonly secret: string;
 
   constructor(private readonly configService: ConfigService) {
-    const configuredSecret = this.configService.get<string>('STORAGE_SERVICE_SECRET');
+    const configuredSecret = this.configService.get<string>(
+      'STORAGE_SERVICE_SECRET',
+    );
     if (!configuredSecret) {
-      throw new Error('STORAGE_SERVICE_SECRET is not configured in the storage service environment.');
+      throw new Error(
+        'STORAGE_SERVICE_SECRET is not configured in the storage service environment.',
+      );
     }
     this.secret = configuredSecret;
   }

@@ -28,28 +28,33 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(private readonly configService: ConfigService) {}
 
   async handleConnection(socket: Socket) {
-    let token = socket.handshake.auth?.token || socket.handshake.headers?.authorization;
-    
+    let token =
+      socket.handshake.auth?.token || socket.handshake.headers?.authorization;
+
     if (typeof token === 'string' && token.startsWith('Bearer ')) {
       token = token.substring(7);
     }
 
     if (!token) {
-      this.logger.warn(`Connection rejected: No token provided (socketId: ${socket.id})`);
+      this.logger.warn(
+        `Connection rejected: No token provided (socketId: ${socket.id})`,
+      );
       socket.disconnect();
       return;
     }
 
     const secret = this.configService.get<string>('STORAGE_SERVICE_SECRET');
     if (!secret) {
-      this.logger.error('STORAGE_SERVICE_SECRET is not configured in the environment.');
+      this.logger.error(
+        'STORAGE_SERVICE_SECRET is not configured in the environment.',
+      );
       socket.disconnect();
       return;
     }
 
     try {
       const decoded = verify(token, secret) as { userId: string; role: string };
-      
+
       if (!decoded.userId || !decoded.role) {
         throw new Error('Token payload is missing userId or role');
       }
@@ -64,15 +69,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
       clientSockets.add(socket);
 
-      this.logger.log(`Client connected: User ${userId} (${decoded.role}) on socket ${socket.id}`);
-      
+      this.logger.log(
+        `Client connected: User ${userId} (${decoded.role}) on socket ${socket.id}`,
+      );
+
       // Acknowledge connection
       socket.emit('authenticated', { userId, role: decoded.role });
-      
+
       // Broadcast online status to all users
       this.broadcastOnlineUsers();
     } catch (error: any) {
-      this.logger.warn(`Connection rejected: Invalid token - ${error.message} (socketId: ${socket.id})`);
+      this.logger.warn(
+        `Connection rejected: Invalid token - ${error.message} (socketId: ${socket.id})`,
+      );
       socket.disconnect();
     }
   }
@@ -87,7 +96,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           this.activeClients.delete(userId);
         }
       }
-      this.logger.log(`Client disconnected: User ${userId} from socket ${socket.id}`);
+      this.logger.log(
+        `Client disconnected: User ${userId} from socket ${socket.id}`,
+      );
       this.broadcastOnlineUsers();
     }
   }
@@ -100,7 +111,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('sendMessage')
   handleMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: {
+    @MessageBody()
+    payload: {
       id: number;
       senderId: string;
       receiverId: string;
@@ -110,17 +122,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       createdAt: any;
       senderName?: string | null;
       receiverName?: string | null;
-    }
+    },
   ) {
     const senderId = client.data?.userId;
-    
+
     if (!senderId) {
-      this.logger.warn(`Message blocked: Socket ${client.id} is not authenticated`);
+      this.logger.warn(
+        `Message blocked: Socket ${client.id} is not authenticated`,
+      );
       return;
     }
 
     if (senderId !== payload.senderId) {
-      this.logger.warn(`User ${senderId} attempted to spoof senderId ${payload.senderId}`);
+      this.logger.warn(
+        `User ${senderId} attempted to spoof senderId ${payload.senderId}`,
+      );
       return;
     }
 

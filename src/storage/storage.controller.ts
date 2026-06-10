@@ -1,6 +1,14 @@
-import { 
-  Controller, Get, Post, Delete, Query, Req, Res, UseGuards, 
-  BadRequestException, StreamableFile 
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+  BadRequestException,
+  StreamableFile,
 } from '@nestjs/common';
 import * as fastify from 'fastify';
 import { ApiKeyGuard } from '../auth/api-key.guard';
@@ -9,7 +17,8 @@ import * as path from 'path';
 
 const MIME_TYPES: Record<string, string> = {
   '.pdf': 'application/pdf',
-  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.docx':
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -38,7 +47,10 @@ export class StorageController {
       throw new BadRequestException('No file payload found in the request.');
     }
 
-    const filePath = await this.storageService.uploadFile(targetPath, data.file);
+    const filePath = await this.storageService.uploadFile(
+      targetPath,
+      data.file,
+    );
     return { success: true, filePath };
   }
 
@@ -82,5 +94,14 @@ export class StorageController {
 
     await this.storageService.deleteFile(targetPath);
     return { success: true };
+  }
+
+  /**
+   * Returns the total storage size of files in bytes.
+   */
+  @Get('size')
+  async getStorageSize(): Promise<{ sizeBytes: number }> {
+    const sizeBytes = await this.storageService.getStorageSize();
+    return { sizeBytes };
   }
 }

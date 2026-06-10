@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -26,7 +30,9 @@ export class StorageService {
     const resolvedTarget = path.resolve(this.storageRoot, cleanPath);
 
     if (!resolvedTarget.startsWith(this.storageRoot)) {
-      throw new BadRequestException('Unsafe path: Directory traversal detected.');
+      throw new BadRequestException(
+        'Unsafe path: Directory traversal detected.',
+      );
     }
 
     return resolvedTarget;
@@ -35,7 +41,10 @@ export class StorageService {
   /**
    * Writes a readable stream to disk at the specified relative location.
    */
-  async uploadFile(relativePath: string, fileStream: Readable): Promise<string> {
+  async uploadFile(
+    relativePath: string,
+    fileStream: Readable,
+  ): Promise<string> {
     const targetPath = this.resolveSafePath(relativePath);
     const parentDir = path.dirname(targetPath);
 
@@ -76,7 +85,39 @@ export class StorageService {
       console.log(`Deleted file: ${targetPath}`);
     } catch (error) {
       // If it doesn't exist, we don't throw an error to remain idempotent
-      console.warn(`File delete warning: ${targetPath} was already removed or inaccessible.`, error);
+      console.warn(
+        `File delete warning: ${targetPath} was already removed or inaccessible.`,
+        error,
+      );
     }
+  }
+
+  /**
+   * Recursively calculates the total size of all files inside the storage root directory.
+   */
+  async getStorageSize(): Promise<number> {
+    const calculateSize = async (dirPath: string): Promise<number> => {
+      let totalSize = 0;
+      try {
+        const entries = await fs.readdir(dirPath, { withFileTypes: true });
+        for (const entry of entries) {
+          const entryPath = path.join(dirPath, entry.name);
+          if (entry.isDirectory()) {
+            totalSize += await calculateSize(entryPath);
+          } else if (entry.isFile()) {
+            const stats = await fs.stat(entryPath);
+            totalSize += stats.size;
+          }
+        }
+      } catch (error) {
+        console.error(
+          `Error calculating size for directory ${dirPath}:`,
+          error,
+        );
+      }
+      return totalSize;
+    };
+
+    return calculateSize(this.storageRoot);
   }
 }
