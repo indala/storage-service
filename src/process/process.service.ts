@@ -9,7 +9,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, PDFName, PDFArray, PDFString } from 'pdf-lib';
 import type { PDFPage, PDFFont, Color } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 
@@ -25,6 +25,7 @@ export class BrandingMetadata {
   paperId!: string;
   startPage?: number | null;
   endPage?: number | null;
+  doi?: string | null;
 }
 
 /* =========================================================
@@ -286,8 +287,10 @@ export class ProcessService {
             HEADER_LETTER_SPACING,
           );
 
-          // WEBSITE | ISSN
-          const infoText = `${metadata.website} | E-ISSN: ${metadata.issn}`;
+          // WEBSITE | ISSN | DOI (if present)
+          const infoText = metadata.doi
+            ? `${metadata.website} | E-ISSN: ${metadata.issn} | DOI: ${metadata.doi}`
+            : `${metadata.website} | E-ISSN: ${metadata.issn}`;
           const infoWidth = widthOfTextWithSpacing(
             infoText,
             HEADER_INFO_FONT_SIZE,
@@ -295,16 +298,70 @@ export class ProcessService {
             HEADER_LETTER_SPACING,
           );
 
+          const startX = (width - infoWidth) / 2;
+          const startY = height - HEADER_INFO_Y_OFFSET - HEADER_CONTENT_TOP_OFFSET;
+
           drawTextWithSpacing(
             page,
             infoText,
-            (width - infoWidth) / 2,
-            height - HEADER_INFO_Y_OFFSET - HEADER_CONTENT_TOP_OFFSET,
+            startX,
+            startY,
             HEADER_INFO_FONT_SIZE,
             boldFont,
             HEADER_TEXT_COLOR,
             HEADER_LETTER_SPACING,
           );
+
+          // If DOI is present, layer a clickable link annotation over the DOI text substring
+          if (metadata.doi) {
+            const prefixText = `${metadata.website} | E-ISSN: ${metadata.issn} | `;
+            const prefixWidth = widthOfTextWithSpacing(
+              prefixText,
+              HEADER_INFO_FONT_SIZE,
+              boldFont,
+              HEADER_LETTER_SPACING,
+            );
+
+            const doiText = `DOI: ${metadata.doi}`;
+            const doiWidth = widthOfTextWithSpacing(
+              doiText,
+              HEADER_INFO_FONT_SIZE,
+              boldFont,
+              HEADER_LETTER_SPACING,
+            );
+
+            const globalDoiUrl = `https://doi.org/${metadata.doi}`;
+            const headerLinkAnnot = pdfDoc.context.obj({
+              Type: 'Annot',
+              Subtype: 'Link',
+              Rect: [
+                startX + prefixWidth, // x1
+                startY - 2, // y1
+                startX + prefixWidth + doiWidth, // x2
+                startY + HEADER_INFO_FONT_SIZE + 2, // y2
+              ],
+              Border: [0, 0, 0], // Invisible border
+              A: {
+                Type: 'Action',
+                S: 'URI',
+                URI: PDFString.of(globalDoiUrl),
+              },
+            });
+
+            const headerLinkAnnotRef = pdfDoc.context.register(headerLinkAnnot);
+
+            if (page.node.has(PDFName.of('Annots'))) {
+              const annots = page.node.get(PDFName.of('Annots'));
+              if (annots instanceof PDFArray) {
+                annots.push(headerLinkAnnotRef);
+              }
+            } else {
+              page.node.set(
+                PDFName.of('Annots'),
+                pdfDoc.context.obj([headerLinkAnnotRef]),
+              );
+            }
+          }
 
           page.drawLine({
             start: {
@@ -345,14 +402,53 @@ export class ProcessService {
         const fTextY =
           fy + targetHeight / 2 - FOOTER_FONT_SIZE / 2 + TEXT_Y_ADJUST;
 
-        // Left: Paper ID
-        page.drawText(`Paper ID: ${metadata.paperId}`, {
+        // Left: Paper ID (Clickable Link Annotation)
+        const paperIdLabel = `Paper ID: ${metadata.paperId}`;
+        const paperIdWidth = boldFont.widthOfTextAtSize(
+          paperIdLabel,
+          FOOTER_FONT_SIZE,
+        );
+
+        page.drawText(paperIdLabel, {
           x: fx + FOOTER_TEXT_PADDING,
           y: fTextY,
           size: FOOTER_FONT_SIZE,
           font: boldFont,
           color: rgb(1, 1, 1),
         });
+
+        // Add hyperlink hotspot
+        const articleUrl = `${metadata.website}/article/${metadata.paperId}`;
+        const linkAnnot = pdfDoc.context.obj({
+          Type: 'Annot',
+          Subtype: 'Link',
+          Rect: [
+            fx + FOOTER_TEXT_PADDING, // x1
+            fTextY - 2, // y1 (slightly below baseline)
+            fx + FOOTER_TEXT_PADDING + paperIdWidth, // x2
+            fTextY + FOOTER_FONT_SIZE + 2, // y2 (slightly above cap-height)
+          ],
+          Border: [0, 0, 0], // Invisible border
+          A: {
+            Type: 'Action',
+            S: 'URI',
+            URI: PDFString.of(articleUrl),
+          },
+        });
+
+        const linkAnnotRef = pdfDoc.context.register(linkAnnot);
+
+        if (page.node.has(PDFName.of('Annots'))) {
+          const annots = page.node.get(PDFName.of('Annots'));
+          if (annots instanceof PDFArray) {
+            annots.push(linkAnnotRef);
+          }
+        } else {
+          page.node.set(
+            PDFName.of('Annots'),
+            pdfDoc.context.obj([linkAnnotRef]),
+          );
+        }
 
         // Center: Volume, Issue, Date
         const centerText = `${metadata.website}    Volume ${metadata.volume} Issue ${metadata.issue}, ${metadata.monthRange} ${metadata.year}`;
