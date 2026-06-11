@@ -12,19 +12,52 @@ import { pipeline } from 'stream/promises';
 import { PDFDocument, rgb, StandardFonts, PDFName, PDFArray, PDFString } from 'pdf-lib';
 import type { PDFPage, PDFFont, Color } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsDefined } from 'class-validator';
 
 export class BrandingMetadata {
+  @IsString()
+  @IsNotEmpty()
   journalName!: string;
+
+  @IsString()
+  @IsNotEmpty()
   journalShortName!: string;
+
+  @IsDefined()
   volume!: string | number;
+
+  @IsDefined()
   issue!: string | number;
+
+  @IsDefined()
   year!: string | number;
+
+  @IsString()
+  @IsOptional()
   monthRange!: string;
+
+  @IsString()
+  @IsNotEmpty()
   issn!: string;
+
+  @IsString()
+  @IsNotEmpty()
   website!: string;
+
+  @IsString()
+  @IsNotEmpty()
   paperId!: string;
+
+  @IsNumber()
+  @IsOptional()
   startPage?: number | null;
+
+  @IsNumber()
+  @IsOptional()
   endPage?: number | null;
+
+  @IsString()
+  @IsOptional()
   doi?: string | null;
 }
 
@@ -78,8 +111,9 @@ function drawTextWithSpacing(
   color: Color,
   spacing = 0,
 ) {
+  const safeText = String(text || '');
   let currentX = x;
-  for (const char of text) {
+  for (const char of safeText) {
     page.drawText(char, {
       x: currentX,
       y,
@@ -97,8 +131,9 @@ function widthOfTextWithSpacing(
   font: PDFFont,
   spacing = 0,
 ) {
-  const baseWidth = font.widthOfTextAtSize(text, size);
-  const totalSpacing = Math.max(0, text.length - 1) * spacing;
+  const safeText = String(text || '');
+  const baseWidth = font.widthOfTextAtSize(safeText, size);
+  const totalSpacing = Math.max(0, safeText.length - 1) * spacing;
   return baseWidth + totalSpacing;
 }
 
