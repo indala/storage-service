@@ -26,8 +26,24 @@ async function bootstrap(): Promise<void> {
   });
 
   // Enable CORS
+  const allowedOrigins = [
+    'https://www.ijitest.org',
+    'https://bingopartyduo.vercel.app',
+    'http://localhost:3000',
+  ];
+  const envFrontend = process.env['FRONTEND_URL'];
+  if (envFrontend && !allowedOrigins.includes(envFrontend)) {
+    allowedOrigins.push(envFrontend);
+  }
+
   app.enableCors({
-    origin: process.env['FRONTEND_URL'] ?? 'https://www.ijitest.org',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.some(o => o === origin || o.replace(/\/$/, '') === origin.replace(/\/$/, ''))) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'), false);
+      }
+    },
     credentials: true,
   });
 

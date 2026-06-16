@@ -14,7 +14,21 @@ import { Logger } from '@nestjs/common';
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: (origin: string, callback: (err: Error | null, allow?: boolean) => void) => {
+      const allowed = [
+        'https://www.ijitest.org',
+        'http://localhost:3000',
+      ];
+      const envUrl = process.env['FRONTEND_URL'];
+      if (envUrl && !allowed.includes(envUrl)) {
+        allowed.push(envUrl);
+      }
+      if (!origin || allowed.some(o => o === origin || o.replace(/\/$/, '') === origin.replace(/\/$/, ''))) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'), false);
+      }
+    },
     credentials: true,
   },
 })
