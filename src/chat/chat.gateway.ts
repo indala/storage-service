@@ -17,6 +17,8 @@ import { Logger } from '@nestjs/common';
     origin: (origin: string, callback: (err: Error | null, allow?: boolean) => void) => {
       const allowed = [
         'https://www.ijitest.org',
+        'https://ijitest.org',
+        'https://bingopartyduo.vercel.app',
         'http://localhost:3000',
       ];
       const envUrl = process.env['FRONTEND_URL'];
