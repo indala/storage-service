@@ -28,6 +28,7 @@ interface Room {
   version: number;
   lastActive: number;
   isBotMatch?: boolean;
+  gridSize?: number;
 }
 
 @WebSocketGateway({
@@ -168,7 +169,9 @@ export class BingoGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    // Add player
+    // Add player (ensure board size matches room's gridSize)
+    const size = room.gridSize || 5;
+    player.board = Array(size * size).fill(0);
     room.players.push(player);
     if (room.players.length === 2) {
       room.status = 'setup';
@@ -313,6 +316,7 @@ export class BingoGateway implements OnGatewayConnection, OnGatewayDisconnect {
         host: r.players[0]?.name || 'Unknown',
         playerCount: r.players.length,
         lastActive: r.lastActive,
+        gridSize: r.gridSize || 5,
       }));
   }
 
