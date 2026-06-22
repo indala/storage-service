@@ -246,6 +246,15 @@ export class BingoGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.broadcastPublicRooms();
   }
 
+  @SubscribeMessage('webrtcSignal')
+  handleWebRtcSignal(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() payload: { roomId: string; signal: { type: 'offer' | 'answer' | 'candidate'; sdp?: string; candidate?: Record<string, unknown> | null } },
+  ) {
+    const { roomId, signal } = payload;
+    socket.to(`room-${roomId}`).emit('webrtcSignal', { signal });
+  }
+
   private performLeaveRoom(roomId: string, playerId: string, socket: Socket) {
     const room = this.rooms.get(roomId);
     if (!room) return;
