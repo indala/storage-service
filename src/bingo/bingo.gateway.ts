@@ -36,7 +36,7 @@ interface Room {
   cors: {
     origin: (origin: string, callback: (err: Error | null, allow?: boolean) => void) => {
       const allowed = [
-        'https://www.ijitest.org',
+        'https://ijitest.org',
         'https://ijitest.org',
         'https://bingopartyduo.vercel.app',
         'http://localhost:3000',
@@ -88,7 +88,7 @@ export class BingoGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     if (roomId && playerId) {
       this.logger.log(`Player ${playerId} disconnected from room ${roomId}. Starting 5m grace period.`);
-      
+
       // Wait 5 minutes before checking if we should prune the room
       setTimeout(async () => {
         const room = this.rooms.get(roomId);
@@ -126,7 +126,7 @@ export class BingoGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // Update lobby list for everyone
     this.broadcastPublicRooms();
-    
+
     // Acknowledge creator
     socket.emit('roomUpdated', room);
   }
@@ -234,12 +234,12 @@ export class BingoGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const { roomId } = payload;
     this.logger.log(`Room ${roomId} explicitly deleted by client request`);
-    
+
     // Notify anyone left (if any) and leave socket room
     this.server.to(`room-${roomId}`).emit('roomClosed', { reason: 'Room deleted by host' });
-    
+
     this.rooms.delete(roomId);
-    
+
     // Clean up socket association
     if (socket.data?.roomId === roomId) {
       socket.data = {};
@@ -278,7 +278,7 @@ export class BingoGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (realPlayersCount === 0) {
       // 0 players left -> Start 5m grace period before pruning
       this.logger.log(`Room ${roomId} has no players left. Starting 5m grace period before deletion.`);
-      
+
       room.status = 'waiting';
       room.list = [];
       room.winner = null;

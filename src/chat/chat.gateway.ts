@@ -16,7 +16,7 @@ import { Logger } from '@nestjs/common';
   cors: {
     origin: (origin: string, callback: (err: Error | null, allow?: boolean) => void) => {
       const allowed = [
-        'https://www.ijitest.org',
+        'https://ijitest.org',
         'https://ijitest.org',
         'https://bingopartyduo.vercel.app',
         'http://localhost:3000',
@@ -41,7 +41,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(ChatGateway.name);
   private readonly activeClients = new Map<string, Set<Socket>>();
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) { }
 
   async handleConnection(socket: Socket) {
     let token =

@@ -27,7 +27,7 @@ async function bootstrap(): Promise<void> {
 
   // Enable CORS
   const allowedOrigins = [
-    'https://www.ijitest.org',
+    'https://ijitest.org',
     'https://bingopartyduo.vercel.app',
     'http://localhost:3000',
   ];
