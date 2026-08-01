@@ -380,6 +380,7 @@ export class ProcessService {
                 Type: 'Action',
                 S: 'URI',
                 URI: PDFString.of(globalDoiUrl),
+                F: 1, // Bit 1 (N): open the link in a new window
               },
             });
 
@@ -468,6 +469,7 @@ export class ProcessService {
             Type: 'Action',
             S: 'URI',
             URI: PDFString.of(articleUrl),
+            F: 1, // Bit 1 (N): open the link in a new window
           },
         });
 
