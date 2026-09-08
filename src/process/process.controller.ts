@@ -7,7 +7,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { ApiKeyGuard } from '../auth/api-key.guard';
-import { ProcessService, BrandingMetadata } from './process.service';
+import { ProcessService, BrandingMetadata, IssueBookMetadata } from './process.service';
 
 @Controller('process')
 @UseGuards(ApiKeyGuard)
@@ -61,5 +61,32 @@ export class ProcessController {
 
     await this.processService.brandPdf(inputPath, outputPath, metadata);
     return { success: true };
+  }
+
+  /**
+   * Generates a complete issue full-book PDF by creating a Table of Contents (TOC)
+   * and merging all published article PDFs.
+   * Expects query params:
+   * ?outputPath=issues/volume-1-issue-1-fullbook.pdf
+   * Expects JSON body with IssueBookMetadata fields.
+   */
+  @Post('issue-book')
+  async generateIssueBook(
+    @Query('outputPath') outputPath: string,
+    @Body() metadata: IssueBookMetadata,
+  ): Promise<{
+    success: boolean;
+    outputPath: string;
+    totalPages: number;
+    articleCount: number;
+    fileSize: number;
+  }> {
+    if (!outputPath) {
+      throw new BadRequestException(
+        'Query parameter "outputPath" is required.',
+      );
+    }
+
+    return await this.processService.generateIssueBook(outputPath, metadata);
   }
 }

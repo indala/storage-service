@@ -12,7 +12,16 @@ import { pipeline } from 'stream/promises';
 import { PDFDocument, rgb, StandardFonts, PDFName, PDFArray, PDFString } from 'pdf-lib';
 import type { PDFPage, PDFFont, Color } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsDefined } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsNumber,
+  IsDefined,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class BrandingMetadata {
   @IsString()
@@ -59,6 +68,71 @@ export class BrandingMetadata {
   @IsString()
   @IsOptional()
   doi?: string | null;
+}
+
+export class IssueArticleItem {
+  @IsString()
+  @IsNotEmpty()
+  paperId!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  title!: string;
+
+  @IsArray()
+  authors!: string[];
+
+  @IsString()
+  @IsNotEmpty()
+  pdfPath!: string;
+
+  @IsOptional()
+  @IsNumber()
+  startPage?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  endPage?: number | null;
+
+  @IsOptional()
+  @IsString()
+  doi?: string | null;
+}
+
+export class IssueBookMetadata {
+  @IsString()
+  @IsNotEmpty()
+  journalName!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  journalShortName!: string;
+
+  @IsDefined()
+  volume!: string | number;
+
+  @IsDefined()
+  issue!: string | number;
+
+  @IsDefined()
+  year!: string | number;
+
+  @IsOptional()
+  @IsString()
+  monthRange?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  issn!: string;
+
+  @IsOptional()
+  @IsString()
+  website?: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => IssueArticleItem)
+  articles!: IssueArticleItem[];
 }
 
 /* =========================================================
@@ -522,6 +596,261 @@ export class ProcessService {
       console.error('PDF Branding Error in Backend:', error);
       throw new BadRequestException(
         `Failed to brand PDF: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  /**
+   * Generates a unified Issue Full-Book PDF with Table of Contents (TOC) and merges all published articles.
+   */
+  async generateIssueBook(
+    outputPath: string,
+    metadata: IssueBookMetadata,
+  ): Promise<{
+    success: boolean;
+    outputPath: string;
+    totalPages: number;
+    articleCount: number;
+    fileSize: number;
+  }> {
+    try {
+      const pdfDoc = await PDFDocument.create();
+
+      // Standard A4 dimensions (595.28 x 841.89 points)
+      const pageWidth = 595.28;
+      const pageHeight = 841.89;
+
+      const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const fontOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+
+      const primaryColor = rgb(0.12, 0.23, 0.38); // Academic Navy
+      const goldColor = rgb(0.79, 0.64, 0.28);    // Rich Gold
+      const charcoalColor = rgb(0.2, 0.2, 0.2);
+      const mutedColor = rgb(0.45, 0.45, 0.45);
+
+      // Helper: Draw centered text
+      const drawCentered = (
+        targetPage: PDFPage,
+        text: string,
+        y: number,
+        font: PDFFont,
+        size: number,
+        color = charcoalColor,
+      ) => {
+        const textWidth = font.widthOfTextAtSize(text, size);
+        const x = (pageWidth - textWidth) / 2;
+        targetPage.drawText(text, { x, y, size, font, color });
+      };
+
+      // Helper: Wrap text to max width
+      const wrapText = (
+        text: string,
+        font: PDFFont,
+        size: number,
+        maxWidth: number,
+      ): string[] => {
+        const words = text.split(' ');
+        const lines: string[] = [];
+        let currentLine = '';
+
+        for (const word of words) {
+          const testLine = currentLine ? `${currentLine} ${word}` : word;
+          if (font.widthOfTextAtSize(testLine, size) <= maxWidth) {
+            currentLine = testLine;
+          } else {
+            if (currentLine) lines.push(currentLine);
+            currentLine = word;
+          }
+        }
+        if (currentLine) lines.push(currentLine);
+        return lines;
+      };
+
+      // Helper: Initialize a styled Table of Contents page
+      const createTocPage = (pageNumber: number): { page: PDFPage; startY: number } => {
+        const page = pdfDoc.addPage([pageWidth, pageHeight]);
+
+        // Dual Decorative Borders
+        page.drawRectangle({
+          x: 25,
+          y: 25,
+          width: pageWidth - 50,
+          height: pageHeight - 50,
+          borderWidth: 2,
+          borderColor: primaryColor,
+        });
+        page.drawRectangle({
+          x: 31,
+          y: 31,
+          width: pageWidth - 62,
+          height: pageHeight - 62,
+          borderWidth: 1,
+          borderColor: goldColor,
+        });
+
+        // Journal Header
+        let y = pageHeight - 65;
+        drawCentered(page, metadata.journalName.toUpperCase(), y, fontBold, 11, primaryColor);
+
+        y -= 14;
+        const sub = `ISSN: ${metadata.issn} (Online)  |  CrossRef Official Prefix: 10.68139  |  Open Access`;
+        drawCentered(page, sub, y, fontRegular, 8.5, goldColor);
+
+        y -= 12;
+        page.drawLine({
+          start: { x: 50, y },
+          end: { x: pageWidth - 50, y },
+          thickness: 0.8,
+          color: goldColor,
+        });
+
+        y -= 26;
+        const issueTitle = `Volume ${metadata.volume}, Issue ${metadata.issue} (${metadata.monthRange ? metadata.monthRange + ' ' : ''}${metadata.year})`;
+        drawCentered(page, issueTitle, y, fontBold, 13, primaryColor);
+
+        y -= 18;
+        drawCentered(
+          page,
+          pageNumber === 1 ? 'TABLE OF CONTENTS' : 'TABLE OF CONTENTS (CONTINUED)',
+          y,
+          fontBold,
+          10.5,
+          goldColor,
+        );
+
+        y -= 10;
+        page.drawLine({
+          start: { x: 180, y },
+          end: { x: pageWidth - 180, y },
+          thickness: 1,
+          color: goldColor,
+        });
+
+        y -= 22;
+        return { page, startY: y };
+      };
+
+      // 1. Build Table of Contents Pages
+      let tocPageCount = 1;
+      let { page: currentTocPage, startY: currentY } = createTocPage(tocPageCount);
+
+      const contentLeftX = 55;
+      const contentRightX = pageWidth - 55;
+      const maxContentWidth = contentRightX - contentLeftX - 70; // Leave space for page tag on right
+
+      for (let i = 0; i < metadata.articles.length; i++) {
+        const article = metadata.articles[i];
+        if (!article) continue;
+
+        const titleLines = wrapText(article.title, fontBold, 9.5, maxContentWidth);
+        const authorsText = article.authors.length > 0 ? article.authors.join(', ') : 'Author(s)';
+        const authorsLines = wrapText(authorsText, fontOblique, 8.5, maxContentWidth);
+
+        // Required height for this article block
+        const blockHeight = (titleLines.length * 12) + (authorsLines.length * 11) + 18 + 14;
+
+        // Check if we need a new TOC page
+        if (currentY - blockHeight < 60) {
+          tocPageCount++;
+          const next = createTocPage(tocPageCount);
+          currentTocPage = next.page;
+          currentY = next.startY;
+        }
+
+        // Article Title
+        for (const tLine of titleLines) {
+          currentTocPage.drawText(tLine, {
+            x: contentLeftX,
+            y: currentY,
+            size: 9.5,
+            font: fontBold,
+            color: primaryColor,
+          });
+          currentY -= 12;
+        }
+
+        // Authors
+        for (const aLine of authorsLines) {
+          currentTocPage.drawText(aLine, {
+            x: contentLeftX,
+            y: currentY,
+            size: 8.5,
+            font: fontOblique,
+            color: charcoalColor,
+          });
+          currentY -= 11;
+        }
+
+        // Meta (DOI & Paper ID)
+        const metaStr = article.doi ? `DOI: 10.68139/${article.doi.replace(/^10\.68139\//, '')}  |  Paper ID: ${article.paperId}` : `Paper ID: ${article.paperId}`;
+        currentTocPage.drawText(metaStr, {
+          x: contentLeftX,
+          y: currentY,
+          size: 7.5,
+          font: fontRegular,
+          color: mutedColor,
+        });
+
+        // Page Range on the right
+        const pageLabel = article.startPage && article.endPage
+          ? `pp. ${article.startPage}–${article.endPage}`
+          : `Article ${i + 1}`;
+        const pageLabelWidth = fontBold.widthOfTextAtSize(pageLabel, 9);
+        currentTocPage.drawText(pageLabel, {
+          x: contentRightX - pageLabelWidth,
+          y: currentY + 12,
+          size: 9,
+          font: fontBold,
+          color: goldColor,
+        });
+
+        // Subtle divider
+        currentY -= 10;
+        currentTocPage.drawLine({
+          start: { x: contentLeftX, y: currentY },
+          end: { x: contentRightX, y: currentY },
+          thickness: 0.5,
+          color: rgb(0.85, 0.85, 0.85),
+        });
+
+        currentY -= 14;
+      }
+
+      // 2. Concatenate Article PDFs
+      let successfullyMerged = 0;
+      for (const article of metadata.articles) {
+        try {
+          const fileStream = await this.storageService.getFileStream(article.pdfPath);
+          const pdfBuffer = await this.streamToBuffer(fileStream);
+          const articleDoc = await PDFDocument.load(pdfBuffer);
+          const copiedPages = await pdfDoc.copyPages(articleDoc, articleDoc.getPageIndices());
+
+          for (const cPage of copiedPages) {
+            pdfDoc.addPage(cPage);
+          }
+          successfullyMerged++;
+        } catch (mergeErr) {
+          console.warn(`[generateIssueBook] Could not merge ${article.paperId} from ${article.pdfPath}:`, mergeErr);
+        }
+      }
+
+      // 3. Save combined PDF and upload to storage
+      const finalPdfBytes = await pdfDoc.save();
+      const readablePdf = Readable.from(Buffer.from(finalPdfBytes));
+      await this.storageService.uploadFile(outputPath, readablePdf);
+
+      return {
+        success: true,
+        outputPath,
+        totalPages: pdfDoc.getPageCount(),
+        articleCount: successfullyMerged,
+        fileSize: finalPdfBytes.length,
+      };
+    } catch (error) {
+      console.error('Complete Issue Book Generation Error:', error);
+      throw new BadRequestException(
+        `Failed to generate complete issue book: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
