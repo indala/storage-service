@@ -22,6 +22,9 @@ const MIME_TYPES: Record<string, string> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.gif': 'image/gif',
 };
 
 @Controller('storage')
@@ -103,5 +106,22 @@ export class StorageController {
   async getStorageSize(): Promise<{ sizeBytes: number }> {
     const sizeBytes = await this.storageService.getStorageSize();
     return { sizeBytes };
+  }
+
+  /**
+   * Returns comprehensive storage statistics including total bytes, size in MB, and file count.
+   */
+  @Get('stats')
+  async getStorageStats(): Promise<{
+    success: boolean;
+    sizeBytes: number;
+    sizeMB: number;
+    fileCount: number;
+  }> {
+    const stats = await this.storageService.getStorageStats();
+    return {
+      success: true,
+      ...stats,
+    };
   }
 }

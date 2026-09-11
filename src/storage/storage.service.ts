@@ -120,4 +120,34 @@ export class StorageService {
 
     return calculateSize(this.storageRoot);
   }
+
+  /**
+   * Recursively calculates detailed storage metrics (total size and file count).
+   */
+  async getStorageStats(): Promise<{ sizeBytes: number; sizeMB: number; fileCount: number }> {
+    let totalSize = 0;
+    let fileCount = 0;
+
+    const scanDir = async (dirPath: string): Promise<void> => {
+      try {
+        const entries = await fs.readdir(dirPath, { withFileTypes: true });
+        for (const entry of entries) {
+          const entryPath = path.join(dirPath, entry.name);
+          if (entry.isDirectory()) {
+            await scanDir(entryPath);
+          } else if (entry.isFile()) {
+            const stats = await fs.stat(entryPath);
+            totalSize += stats.size;
+            fileCount += 1;
+          }
+        }
+      } catch (error) {
+        console.error(`Error scanning directory ${dirPath}:`, error);
+      }
+    };
+
+    await scanDir(this.storageRoot);
+    const sizeMB = Math.round((totalSize / (1024 * 1024)) * 100) / 100;
+    return { sizeBytes: totalSize, sizeMB, fileCount };
+  }
 }
