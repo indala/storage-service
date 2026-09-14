@@ -439,7 +439,8 @@ export class ProcessService {
               HEADER_LETTER_SPACING,
             );
 
-            const globalDoiUrl = `https://doi.org/${metadata.doi}`;
+            const cleanDoiSuffix = metadata.doi.replace(/^https?:\/\/doi\.org\//, '');
+            const globalDoiUrl = metadata.doi.startsWith('http') ? metadata.doi : `https://doi.org/${cleanDoiSuffix}`;
             const headerLinkAnnot = pdfDoc.context.obj({
               Type: 'Annot',
               Subtype: 'Link',
