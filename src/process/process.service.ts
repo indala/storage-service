@@ -276,10 +276,16 @@ export class ProcessService {
       const articleUrl = `${globalWebsiteUrl}/article/${metadata.paperId}`;
 
       const cleanDoiSuffix = metadata.doi
-        ? metadata.doi.replace(/^https?:\/\/doi\.org\//, '').trim()
+        ? metadata.doi
+            .replace(/^https?:\/\/doi\.org\//, '')
+            .replace(/^doi:\s*/i, '')
+            .replace(/^10\.\d{4,9}\/(10\.\d{4,9}\/\S+)$/i, '$1')
+            .trim()
         : '';
       const globalDoiUrl = cleanDoiSuffix
-        ? (metadata.doi?.startsWith('http') ? metadata.doi : `https://doi.org/${cleanDoiSuffix}`)
+        ? (cleanDoiSuffix.startsWith('http')
+            ? cleanDoiSuffix
+            : `https://doi.org/${cleanDoiSuffix.startsWith('10.') ? cleanDoiSuffix : `10.68139/${cleanDoiSuffix}`}`)
         : null;
 
       const monthText = metadata.monthRange ? `${metadata.monthRange} ` : '';
@@ -462,29 +468,36 @@ export class ProcessService {
           });
 
           // Left Line 1 (y=58): DOI
-          const doiDisplay = cleanDoiSuffix
-            ? `DOI: 10.68139/${cleanDoiSuffix.replace(/^10\.68139\//, '')}`
-            : (metadata.doi || 'DOI: 10.68139.');
+          let formattedDoi = '';
+          if (cleanDoiSuffix) {
+            formattedDoi = cleanDoiSuffix.startsWith('10.')
+              ? cleanDoiSuffix
+              : `10.68139/${cleanDoiSuffix.replace(/^10\.68139\//, '')}`;
+          }
 
-          page.drawText(doiDisplay, {
-            x: P1_MARGIN_X,
-            y: P1_FOOTER_LINE1_Y,
-            size: P1_FOOTER_FONT_SIZE,
-            font: fontBold,
-            color: BRAND_RED,
-          });
+          const doiDisplay = formattedDoi ? `DOI: ${formattedDoi}` : '';
 
-          if (globalDoiUrl) {
-            const doiWidth = fontBold.widthOfTextAtSize(doiDisplay, P1_FOOTER_FONT_SIZE);
-            addLinkAnnotation(
-              pdfDoc,
-              page,
-              P1_MARGIN_X,
-              P1_FOOTER_LINE1_Y,
-              doiWidth,
-              P1_FOOTER_FONT_SIZE,
-              globalDoiUrl,
-            );
+          if (doiDisplay) {
+            page.drawText(doiDisplay, {
+              x: P1_MARGIN_X,
+              y: P1_FOOTER_LINE1_Y,
+              size: P1_FOOTER_FONT_SIZE,
+              font: fontBold,
+              color: BRAND_RED,
+            });
+
+            if (globalDoiUrl) {
+              const doiWidth = fontBold.widthOfTextAtSize(doiDisplay, P1_FOOTER_FONT_SIZE);
+              addLinkAnnotation(
+                pdfDoc,
+                page,
+                P1_MARGIN_X,
+                P1_FOOTER_LINE1_Y,
+                doiWidth,
+                P1_FOOTER_FONT_SIZE,
+                globalDoiUrl,
+              );
+            }
           }
 
           // Left Line 2 (y=46): Paper ID | Volume ...
@@ -797,7 +810,20 @@ export class ProcessService {
         }
 
         // Meta (DOI & Paper ID)
-        const metaStr = article.doi ? `DOI: 10.68139/${article.doi.replace(/^10\.68139\//, '')}  |  Paper ID: ${article.paperId}` : `Paper ID: ${article.paperId}`;
+        let articleDoiFormatted = '';
+        if (article.doi) {
+          const rawDoi = article.doi
+            .replace(/^https?:\/\/doi\.org\//, '')
+            .replace(/^doi:\s*/i, '')
+            .replace(/^10\.\d{4,9}\/(10\.\d{4,9}\/\S+)$/i, '$1')
+            .trim();
+          articleDoiFormatted = rawDoi.startsWith('10.')
+            ? rawDoi
+            : `10.68139/${rawDoi.replace(/^10\.68139\//, '')}`;
+        }
+        const metaStr = articleDoiFormatted
+          ? `DOI: ${articleDoiFormatted}  |  Paper ID: ${article.paperId}`
+          : `Paper ID: ${article.paperId}`;
         currentTocPage.drawText(metaStr, {
           x: contentLeftX,
           y: currentY,
