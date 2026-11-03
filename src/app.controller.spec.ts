@@ -13,7 +13,7 @@ describe('AppController health endpoints', () => {
   });
 
   it('reports readiness when storage is accessible', async () => {
-    const checkReadiness = jest.fn().mockResolvedValue(undefined);
+    const checkReadiness = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
     const controller = new AppController(
       { get: jest.fn() } as never,
       { checkReadiness } as never,
@@ -27,7 +27,7 @@ describe('AppController health endpoints', () => {
     const controller = new AppController(
       { get: jest.fn() } as never,
       {
-        checkReadiness: jest.fn().mockRejectedValue(new Error('denied')),
+        checkReadiness: jest.fn<() => Promise<void>>().mockRejectedValue(new Error('denied')),
       } as never,
     );
 

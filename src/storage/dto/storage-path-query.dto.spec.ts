@@ -1,3 +1,4 @@
+import { describe, expect, it } from '@jest/globals';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { StoragePathQueryDto } from './storage-path-query.dto';
@@ -11,7 +12,7 @@ describe('StoragePathQueryDto', () => {
     '/absolute/file.pdf',
     'C:\\absolute\\file.pdf',
     'submissions/file\0.pdf',
-  ])('rejects unsafe path %j', async (path) => {
+  ])('rejects unsafe path %j', async (path: string) => {
     const dto = plainToInstance(StoragePathQueryDto, { path });
 
     await expect(validate(dto)).resolves.not.toHaveLength(0);

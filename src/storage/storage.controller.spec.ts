@@ -7,11 +7,11 @@ import { StorageController } from './storage.controller';
 describe('StorageController', () => {
   it('rejects an upload without a multipart file before calling storage', async () => {
     const storageService = {
-      uploadFile: jest.fn(),
+      uploadFile: jest.fn<(...args: any[]) => Promise<any>>(),
     };
     const controller = new StorageController(storageService as never);
     const request = {
-      file: jest.fn().mockResolvedValue(undefined),
+      file: jest.fn<() => Promise<any>>().mockResolvedValue(undefined),
     };
 
     await expect(
@@ -24,11 +24,11 @@ describe('StorageController', () => {
   it('passes the validated path and multipart stream to storage', async () => {
     const fileStream = Readable.from(['file contents']);
     const storageService = {
-      uploadFile: jest.fn().mockResolvedValue('submissions/file.pdf'),
+      uploadFile: jest.fn<(...args: any[]) => Promise<any>>().mockResolvedValue('submissions/file.pdf'),
     };
     const controller = new StorageController(storageService as never);
     const request = {
-      file: jest.fn().mockResolvedValue({ file: fileStream }),
+      file: jest.fn<() => Promise<any>>().mockResolvedValue({ file: fileStream }),
     };
 
     await expect(
