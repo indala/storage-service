@@ -80,6 +80,8 @@ Uploading directly to the `bucket` URL via `PUT` handles large PDF files efficie
           "name": "Dinesh, P."
         }
       ],
+      "publisher": "Felix Academic Publications",
+      "imprint_publisher": "Felix Academic Publications",
       "journal_title": "International Journal of Innovative Trends in Engineering, Science and Technology",
       "journal_volume": "1",
       "journal_issue": "1",
